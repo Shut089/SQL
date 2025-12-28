@@ -3,13 +3,15 @@ package ru.netology.db;
 import java.sql.*;
 
 public class DbUtils {
+    private DbUtils() {}
 
     private static final String URL =
             "jdbc:mysql://localhost:3306/app?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
     private static final String USER = "app";
     private static final String PASS = "pass";
 
-    public static void cleanDatabase() {
+    /** Чистим только коды, чтобы старые записи не мешали */
+    public static void cleanAuthCodes() {
         try (Connection conn = DriverManager.getConnection(URL, USER, PASS);
              Statement st = conn.createStatement()) {
             st.execute("SET FOREIGN_KEY_CHECKS = 0");
@@ -20,7 +22,8 @@ public class DbUtils {
         }
     }
 
-    public static String getAuthCode(String login) {
+    /** Берём самый свежий код по логину */
+    public static String getLatestAuthCodeByLogin(String login) {
         String sql =
                 "SELECT ac.code " +
                         "FROM auth_codes ac " +
@@ -35,14 +38,27 @@ public class DbUtils {
             ps.setString(1, login);
 
             try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
-                    return null;
-                }
+                if (!rs.next()) return null;
                 return rs.getString("code");
             }
 
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /** Удобный метод “подождать код” (чтобы не делать sleep-цикл в тесте) */
+    public static String waitLatestAuthCodeByLogin(String login, int attempts, long sleepMs) {
+        for (int i = 0; i < attempts; i++) {
+            String code = getLatestAuthCodeByLogin(login);
+            if (code != null) return code;
+            try {
+                Thread.sleep(sleepMs);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+        }
+        return null;
     }
 }

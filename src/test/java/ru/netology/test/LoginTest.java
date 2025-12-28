@@ -1,91 +1,53 @@
 package ru.netology.test;
 
-import com.codeborne.selenide.Condition;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.*;
+import ru.netology.data.DataHelper;
 import ru.netology.db.DbUtils;
+import ru.netology.page.LoginPage;
+import ru.netology.page.VerificationPage;
 
-import static com.codeborne.selenide.Selenide.*;
+import static com.codeborne.selenide.Selenide.open;
 
 public class LoginTest {
 
     @BeforeEach
-    void setup() {
-        DbUtils.cleanDatabase();
-        open("http://localhost:9999");
+    void setUp() {
+        DbUtils.cleanAuthCodes();
+        open(DataHelper.BASE_URL);
     }
 
     @Test
     void shouldLoginWithCodeFromDatabase() {
-        String login = "vasya";
-        String password = "qwerty123";
+        var user = DataHelper.validUser();
 
-        $("[data-test-id=login] input").setValue(login);
-        $("[data-test-id=password] input").setValue(password);
-        $("[data-test-id=action-login]").click();
+        LoginPage loginPage = new LoginPage();
+        VerificationPage verificationPage = loginPage.login(user);
 
-        // если логин не прошёл — дальше идти бессмысленно
-        if ($("[data-test-id=error-notification]").exists()
-                && $("[data-test-id=error-notification]").isDisplayed()) {
-            throw new AssertionError("Логин/пароль не приняты: " +
-                    $("[data-test-id=error-notification]").getText());
-        }
-
-        // дождаться формы ввода кода
-        $("[data-test-id=code] input").shouldBe(Condition.visible);
-
-        // ждём, пока код появится в БД
-        String code = null;
-        for (int i = 0; i < 10; i++) { // до ~5 секунд
-            code = DbUtils.getAuthCode(login);
-            if (code != null) break;
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException(e);
-            }
-        }
+        String code = DbUtils.waitLatestAuthCodeByLogin(user.getLogin(), 10, 500);
         Assertions.assertNotNull(code, "Код не появился в БД");
 
-        $("[data-test-id=code] input").setValue(code);
-        $("[data-test-id=action-verify]").click();
-
-        // проверяем, что код принят: ошибки нет и поле кода исчезло
-        $("[data-test-id=error-notification]").shouldNotBe(Condition.visible);
-        $("[data-test-id=code] input").shouldNotBe(Condition.visible);
+        verificationPage.verifyWithCode(code);
+        verificationPage.shouldNotSeeError();
+        verificationPage.shouldLeaveVerificationPage();
     }
 
     @Test
     void shouldBlockAfterThreeWrongPasswords() {
-        String login = "vasya";
+        // 3 неверных попытки → затем правильный пароль всё равно не должен пускать.
+        var valid = DataHelper.validUser();
+        var wrong = DataHelper.userWithWrongPassword();
+
+        LoginPage loginPage = new LoginPage();
 
         for (int i = 0; i < 3; i++) {
-            open("http://localhost:9999");
-
-            // ждём, что форма точно появилась
-            $("[data-test-id=login] input").shouldBe(Condition.visible);
-
-            // очищаем поля (важно!)
-            $("[data-test-id=login] input").setValue("").setValue(login);
-            $("[data-test-id=password] input").setValue("").setValue("wrong");
-            $("[data-test-id=action-login]").click();
-
-            $("[data-test-id=error-notification]").shouldBe(Condition.visible);
+            loginPage.login(wrong);          // попытка логина с неверным паролем
+            loginPage.shouldSeeError();
+            open(DataHelper.BASE_URL);
+            loginPage = new LoginPage();
         }
 
-        open("http://localhost:9999");
-        $("[data-test-id=login] input").shouldBe(Condition.visible);
-
-        $("[data-test-id=login] input").setValue("").setValue(login);
-        $("[data-test-id=password] input").setValue("").setValue("qwerty123");
-        $("[data-test-id=action-login]").click();
-
-        // после блокировки мы НЕ должны попасть на страницу кода
-        $("[data-test-id=code] input").shouldNotBe(Condition.visible);
-
-        // и должна быть ошибка
-        $("[data-test-id=error-notification]").shouldBe(Condition.visible);
+        // Попытка с верным паролем после 3 ошибок — ожидаем блокировку (ошибка)
+        loginPage.login(valid);
+        loginPage.shouldSeeError();
     }
 }
