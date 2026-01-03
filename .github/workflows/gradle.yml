@@ -33,10 +33,10 @@ jobs:
         run: |
           java -jar artifacts/app-deadline.jar &
 
-      # (необязательно, но часто спасает от гонок)
+
       - name: Waiting for SUT start
         run: sleep 10
 
-      # 4) Запускаем тесты
+
       - name: Build with Gradle
         run: ./gradlew test -Dselenide.headless=true --info
