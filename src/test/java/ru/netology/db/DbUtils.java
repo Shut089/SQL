@@ -1,6 +1,11 @@
 package ru.netology.db;
 
-import java.sql.*;
+import org.apache.commons.dbutils.QueryRunner;
+import org.apache.commons.dbutils.handlers.ScalarHandler;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 
 public class DbUtils {
     private DbUtils() {}
@@ -10,20 +15,22 @@ public class DbUtils {
     private static final String USER = "app";
     private static final String PASS = "pass";
 
-    /** Чистим только коды, чтобы старые записи не мешали */
+    private static Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(URL, USER, PASS);
+    }
+
+
     public static void cleanAuthCodes() {
-        try (Connection conn = DriverManager.getConnection(URL, USER, PASS);
-             Statement st = conn.createStatement()) {
-            st.execute("SET FOREIGN_KEY_CHECKS = 0");
-            st.execute("TRUNCATE TABLE auth_codes");
-            st.execute("SET FOREIGN_KEY_CHECKS = 1");
+        QueryRunner runner = new QueryRunner();
+        try (Connection conn = getConnection()) {
+            runner.update(conn, "DELETE FROM auth_codes");
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    /** Берём самый свежий код по логину */
-    public static String getLatestAuthCodeByLogin(String login) {
+   public static String getAuthCode(String login) {
+        QueryRunner runner = new QueryRunner();
         String sql =
                 "SELECT ac.code " +
                         "FROM auth_codes ac " +
@@ -32,25 +39,17 @@ public class DbUtils {
                         "ORDER BY ac.created DESC " +
                         "LIMIT 1";
 
-        try (Connection conn = DriverManager.getConnection(URL, USER, PASS);
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setString(1, login);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) return null;
-                return rs.getString("code");
-            }
-
+        try (Connection conn = getConnection()) {
+            return runner.query(conn, sql, new ScalarHandler<>(), login);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    /** Удобный метод “подождать код” (чтобы не делать sleep-цикл в тесте) */
-    public static String waitLatestAuthCodeByLogin(String login, int attempts, long sleepMs) {
+
+    public static String waitAuthCode(String login, int attempts, long sleepMs) {
         for (int i = 0; i < attempts; i++) {
-            String code = getLatestAuthCodeByLogin(login);
+            String code = getAuthCode(login);
             if (code != null) return code;
             try {
                 Thread.sleep(sleepMs);
@@ -60,5 +59,19 @@ public class DbUtils {
             }
         }
         return null;
+    }
+
+
+    public static void cleanAllTestData() {
+        QueryRunner runner = new QueryRunner();
+        try (Connection conn = getConnection()) {
+            // порядок удаления: дочерние таблицы -> родительские
+            runner.update(conn, "DELETE FROM card_transactions");
+            runner.update(conn, "DELETE FROM auth_codes");
+            runner.update(conn, "DELETE FROM cards");
+            runner.update(conn, "DELETE FROM users"); // последняя!
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

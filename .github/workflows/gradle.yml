@@ -34,9 +34,5 @@ jobs:
           java -jar artifacts/app-deadline.jar &
 
 
-      - name: Waiting for SUT start
-        run: sleep 10
-
-
       - name: Build with Gradle
         run: ./gradlew test -Dselenide.headless=true --info

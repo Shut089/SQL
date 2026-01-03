@@ -3,17 +3,23 @@ package ru.netology.test;
 import org.junit.jupiter.api.*;
 import ru.netology.data.DataHelper;
 import ru.netology.db.DbUtils;
+import ru.netology.page.DashboardPage;
 import ru.netology.page.LoginPage;
 import ru.netology.page.VerificationPage;
 
 import static com.codeborne.selenide.Selenide.open;
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class LoginTest {
 
     @BeforeEach
     void setUp() {
-        DbUtils.cleanAuthCodes();
         open(DataHelper.BASE_URL);
+    }
+
+    @AfterAll
+    void tearDown() {
+        DbUtils.cleanAllTestData();
     }
 
     @Test
@@ -23,31 +29,28 @@ public class LoginTest {
         LoginPage loginPage = new LoginPage();
         VerificationPage verificationPage = loginPage.login(user);
 
-        String code = DbUtils.waitLatestAuthCodeByLogin(user.getLogin(), 10, 500);
+        String code = DbUtils.waitAuthCode(user.getLogin(), 10, 500);
         Assertions.assertNotNull(code, "Код не появился в БД");
 
-        verificationPage.verifyWithCode(code);
-        verificationPage.shouldNotSeeError();
-        verificationPage.shouldLeaveVerificationPage();
+        DashboardPage dashboardPage = verificationPage.verify(code);
+        dashboardPage.shouldBeVisible();
     }
 
     @Test
     void shouldBlockAfterThreeWrongPasswords() {
-        // 3 неверных попытки → затем правильный пароль всё равно не должен пускать.
         var valid = DataHelper.validUser();
         var wrong = DataHelper.userWithWrongPassword();
 
-        LoginPage loginPage = new LoginPage();
-
         for (int i = 0; i < 3; i++) {
-            loginPage.login(wrong);          // попытка логина с неверным паролем
-            loginPage.shouldSeeError();
             open(DataHelper.BASE_URL);
-            loginPage = new LoginPage();
+            LoginPage loginPage = new LoginPage();
+            loginPage.loginWithInvalidPassword(wrong);
+            loginPage.shouldShowErrorMessage("Ошибка!");
         }
 
-        // Попытка с верным паролем после 3 ошибок — ожидаем блокировку (ошибка)
+        open(DataHelper.BASE_URL);
+        LoginPage loginPage = new LoginPage();
         loginPage.login(valid);
-        loginPage.shouldSeeError();
+        loginPage.shouldShowErrorMessage("Ошибка!");
     }
 }

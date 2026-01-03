@@ -11,6 +11,7 @@ public class LoginPage {
         $("[data-test-id=login] input").shouldBe(Condition.visible);
     }
 
+    // Успешный логин -> переходим на VerificationPage
     public VerificationPage login(DataHelper.AuthInfo user) {
         $("[data-test-id=login] input").setValue(user.getLogin());
         $("[data-test-id=password] input").setValue(user.getPassword());
@@ -18,7 +19,17 @@ public class LoginPage {
         return new VerificationPage();
     }
 
-    public void shouldSeeError() {
-        $("[data-test-id=error-notification]").shouldBe(Condition.visible);
+    // Негативный логин -> остаёмся на LoginPage
+    public LoginPage loginWithInvalidPassword(DataHelper.AuthInfo user) {
+        $("[data-test-id=login] input").setValue(user.getLogin());
+        $("[data-test-id=password] input").setValue(user.getPassword());
+        $("[data-test-id=action-login]").click();
+        return this;
+    }
+
+    public void shouldShowErrorMessage(String expectedText) {
+        $("[data-test-id=error-notification]")
+                .shouldBe(Condition.visible)
+                .shouldHave(Condition.text(expectedText));
     }
 }

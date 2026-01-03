@@ -1,7 +1,8 @@
 SET FOREIGN_KEY_CHECKS = 0;
 
-TRUNCATE TABLE auth_codes;
-TRUNCATE TABLE cards;
-TRUNCATE TABLE users;
+TRUNCATE auth_codes;
+TRUNCATE card_transactions;
+TRUNCATE cards;
+TRUNCATE users;
 
 SET FOREIGN_KEY_CHECKS = 1;

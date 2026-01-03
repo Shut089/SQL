@@ -1,35 +1,23 @@
 package ru.netology.data;
 
+import lombok.Value;
+
 public class DataHelper {
-    private DataHelper() {
-    }
+    private DataHelper() {}
 
     public static final String BASE_URL = "http://localhost:9999";
 
     public static AuthInfo validUser() {
-        return new AuthInfo("vasya", "qwerty123"); // если пароль другой — замени здесь
+        return new AuthInfo("vasya", "qwerty123");
     }
 
     public static AuthInfo userWithWrongPassword() {
         return new AuthInfo("vasya", "wrong");
     }
 
-
+    @Value
     public static class AuthInfo {
-        private final String login;
-        private final String password;
-
-        public AuthInfo(String login, String password) {
-            this.login = login;
-            this.password = password;
-        }
-
-        public String getLogin() {
-            return login;
-        }
-
-        public String getPassword() {
-            return password;
-        }
+        String login;
+        String password;
     }
 }
