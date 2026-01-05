@@ -21,4 +21,12 @@ dependencies {
 
 test {
     useJUnitPlatform()
+    systemProperty 'selenide.headless', System.getProperty('selenide.headless', 'true')
+
+    // prefs передаются строкой key=value;key2=value2
+    // выключаем менеджер паролей/сервис учетных данных (часто ломает CI)
+    systemProperty 'chromeoptions.prefs', System.getProperty(
+            'chromeoptions.prefs',
+            'credentials_enable_service=false;profile.password_manager_enabled=false'
+    )
 }

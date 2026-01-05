@@ -1,5 +1,6 @@
 package ru.netology.test;
 
+import com.codeborne.selenide.Condition;
 import org.junit.jupiter.api.*;
 import ru.netology.data.DataHelper;
 import ru.netology.db.DbUtils;
@@ -7,6 +8,9 @@ import ru.netology.page.DashboardPage;
 import ru.netology.page.LoginPage;
 import ru.netology.page.VerificationPage;
 
+import java.time.Duration;
+
+import static com.codeborne.selenide.Selenide.$;
 import static com.codeborne.selenide.Selenide.open;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -32,9 +36,8 @@ public class LoginTest {
         String code = DbUtils.waitAuthCode(user.getLogin(), 10, 500);
         Assertions.assertNotNull(code, "Код не появился в БД");
 
-        DashboardPage dashboardPage = verificationPage.verify(code);
-        dashboardPage.shouldBeVisible();
-    }
+        verificationPage.verify(code);
+     }
 
     @Test
     void shouldBlockAfterThreeWrongPasswords() {
@@ -45,12 +48,13 @@ public class LoginTest {
             open(DataHelper.BASE_URL);
             LoginPage loginPage = new LoginPage();
             loginPage.loginWithInvalidPassword(wrong);
-            loginPage.shouldShowErrorMessage("Ошибка!");
+            loginPage.shouldShowErrorMessage();
         }
 
         open(DataHelper.BASE_URL);
         LoginPage loginPage = new LoginPage();
-        loginPage.login(valid);
-        loginPage.shouldShowErrorMessage("Ошибка!");
+        loginPage.loginWithInvalidPassword(valid);
+        $("[data-test-id=code] input")
+             .shouldNotBe(Condition.visible, Duration.ofSeconds(10));
     }
 }

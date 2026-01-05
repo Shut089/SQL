@@ -12,6 +12,7 @@ public class DataHelper {
     }
 
     public static AuthInfo userWithWrongPassword() {
+
         return new AuthInfo("vasya", "wrong");
     }
 

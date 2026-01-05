@@ -3,6 +3,8 @@ package ru.netology.page;
 import com.codeborne.selenide.Condition;
 import ru.netology.data.DataHelper;
 
+import java.time.Duration;
+
 import static com.codeborne.selenide.Selenide.$;
 
 public class LoginPage {
@@ -11,25 +13,31 @@ public class LoginPage {
         $("[data-test-id=login] input").shouldBe(Condition.visible);
     }
 
-    // Успешный логин -> переходим на VerificationPage
     public VerificationPage login(DataHelper.AuthInfo user) {
-        $("[data-test-id=login] input").setValue(user.getLogin());
-        $("[data-test-id=password] input").setValue(user.getPassword());
-        $("[data-test-id=action-login]").click();
+        submitCredentials(user);
         return new VerificationPage();
     }
 
-    // Негативный логин -> остаёмся на LoginPage
     public LoginPage loginWithInvalidPassword(DataHelper.AuthInfo user) {
-        $("[data-test-id=login] input").setValue(user.getLogin());
-        $("[data-test-id=password] input").setValue(user.getPassword());
-        $("[data-test-id=action-login]").click();
+        submitCredentials(user);
         return this;
     }
 
-    public void shouldShowErrorMessage(String expectedText) {
-        $("[data-test-id=error-notification]")
-                .shouldBe(Condition.visible)
-                .shouldHave(Condition.text(expectedText));
+    private void submitCredentials(DataHelper.AuthInfo user) {
+        $("[data-test-id=login] input").clear();
+        $("[data-test-id=password] input").clear();
+        $("[data-test-id=login] input").setValue(user.getLogin());
+        $("[data-test-id=password] input").setValue(user.getPassword());
+        $("[data-test-id=action-login]").click();
     }
+
+
+    // Делаем проверку по заголовку и по содержимому.
+    public void shouldShowErrorMessage() {
+        $("[data-test-id=error-notification]")
+                .shouldBe(Condition.visible, Duration.ofSeconds(10))
+                .shouldHave(Condition.text("Ошибка"))
+                .shouldHave(Condition.text("Неверно указан логин или пароль"));
+    }
+
 }
