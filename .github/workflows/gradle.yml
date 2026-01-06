@@ -1,24 +1,23 @@
-name: build
+name: Java CI with Gradle
 
-on:
-  push:
-  pull_request:
+on: [push, pull_request]
 
 jobs:
   build:
+
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
 
       - name: Set up JDK 11
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v2
         with:
-          distribution: temurin
-          java-version: "11"
+          java-version: '11'
+          distribution: 'adopt'
 
-      - name: Make gradlew executable
+      - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Container start
@@ -26,17 +25,18 @@ jobs:
         with:
           compose-file: docker-compose.yml
 
-      - name: Waiting for container start
+      - name: Waiting for сontainer start
         run: sleep 30
 
       - name: Start SUT
-        env:
-          DB_URL: jdbc:mysql://localhost:3306/app
-          DB_USER: app
-          DB_PASS: pass
-        run: |
-          java -jar artifacts/app-deadline.jar > sut.log 2>&1 &
-          echo $! > sut.pid
+        # Запускаем SUT,
+        # имя файла SUT будет отличаться в каждой задаче.
+        # & означает, что в фоновом режиме не блокируем терминал для запуска тестов, 
+        # обязательно должен быть для запуска SUT в CI
+        run: java -jar ./artifacts/app-deadline.jar &
 
-      - name: Run tests
+      - name: Run Tests
+        # Запускаем автотесты
+        # Для проектов на базе Selenide необходимо добавить параметр для запуска браузера
+        # в headless режиме -Dselenide.headless=true, параметр --info должен остаться
         run: ./gradlew test -Dselenide.headless=true --info
