@@ -12,101 +12,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Set up JDK 11
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '11'
-          cache: gradle
+          java-version: "11"
 
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Start MySQL (docker-compose)
-        run: |
-          docker compose -f docker-compose.yml up -d
-          docker ps -a
+      - name: Container start
+        uses: hoverkraft-tech/compose-action@v2.0.1
+        with:
+          compose-file: docker-compose.yml
 
-      - name: Wait for MySQL health
-        run: |
-          set -e
-          for i in {1..60}; do
-            status=$(docker inspect --format='{{.State.Health.Status}}' mysql-deadline 2>/dev/null || echo "starting")
-            echo "mysql status: $status"
-            if [ "$status" = "healthy" ]; then
-              echo "MySQL is healthy"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "MySQL did not become healthy"
-          docker logs mysql-deadline || true
-          exit 1
+      - name: Waiting for container start
+        run: sleep 30
 
-      - name: Run SUT (app-deadline.jar)
+      - name: Start SUT
         env:
-          DB_URL: jdbc:mysql://localhost:3306/app?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+          DB_URL: jdbc:mysql://localhost:3306/app
           DB_USER: app
           DB_PASS: pass
         run: |
-          set -e
-          nohup java -jar artifacts/app-deadline.jar > sut.log 2>&1 &
+          java -jar artifacts/app-deadline.jar > sut.log 2>&1 &
           echo $! > sut.pid
-          echo "SUT PID=$(cat sut.pid)"
-
-      - name: Wait for SUT
-        run: |
-          set -e
-          URL="http://127.0.0.1:9999/"
-          for i in {1..30}; do
-            if curl -fsS "$URL" >/dev/null; then
-              echo "SUT is up: $URL"
-              exit 0
-            fi
-            echo "Waiting for SUT... ($i)"
-            sleep 2
-          done
-          echo "SUT did not start"
-          echo "---- sut.log ----"
-          cat sut.log || true
-          exit 1
 
       - name: Run tests
-        env:
-          # если у тебя BASE_URL не захардкожен, а читается из system property/env — можно использовать:
-          # BASE_URL: http://127.0.0.1:9999
-          DB_URL: jdbc:mysql://localhost:3306/app?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-          DB_USER: app
-          DB_PASS: pass
-        run: |
-          ./gradlew test -Dselenide.headless=true --info
-
-      - name: Upload test report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-report
-          path: |
-            build/reports/tests/test
-            build/test-results/test
-            sut.log
-
-      - name: Print logs on failure
-        if: failure()
-        run: |
-          echo "---- sut.log ----"
-          cat sut.log || true
-          echo "---- mysql logs ----"
-          docker logs mysql-deadline || true
-
-      - name: Stop SUT
-        if: always()
-        run: |
-          if [ -f sut.pid ]; then
-            kill "$(cat sut.pid)" || true
-          fi
-
-      - name: Docker compose down
-        if: always()
-        run: |
-          docker compose -f docker-compose.yml down -v
+        run: ./gradlew test -Dselenide.headless=true --info
