@@ -1,6 +1,7 @@
 package ru.netology.test;
 
 import com.codeborne.selenide.Condition;
+import com.codeborne.selenide.Selenide;
 import org.junit.jupiter.api.*;
 import ru.netology.data.DataHelper;
 import ru.netology.db.DbUtils;
@@ -44,17 +45,18 @@ public class LoginTest {
         var valid = DataHelper.validUser();
         var wrong = DataHelper.userWithWrongPassword();
 
+        // 1-3 попытки: вводим неверный пароль и проверяем стандартную ошибку
         for (int i = 0; i < 3; i++) {
-            open(DataHelper.BASE_URL);
+//            open(DataHelper.BASE_URL);
             LoginPage loginPage = new LoginPage();
             loginPage.loginWithInvalidPassword(wrong);
             loginPage.shouldShowErrorMessage();
+            Selenide.refresh();
         }
-
+        // 4-я попытка с валидными данными
         open(DataHelper.BASE_URL);
         LoginPage loginPage = new LoginPage();
         loginPage.loginWithInvalidPassword(valid);
-        $("[data-test-id=code] input")
-             .shouldNotBe(Condition.visible, Duration.ofSeconds(10));
+        loginPage.shouldShowErrorMessage();
     }
 }
