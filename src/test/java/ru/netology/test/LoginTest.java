@@ -57,6 +57,6 @@ public class LoginTest {
         open(DataHelper.BASE_URL);
         LoginPage loginPage = new LoginPage();
         loginPage.loginWithInvalidPassword(valid);
-        loginPage.shouldShowErrorMessage();
+        loginPage.shouldShowBlockedMessage();
     }
 }

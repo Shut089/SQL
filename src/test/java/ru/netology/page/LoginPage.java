@@ -37,7 +37,7 @@ public class LoginPage {
         $("[data-test-id=error-notification]")
                 .shouldBe(Condition.visible, Duration.ofSeconds(10))
                 .shouldHave(Condition.text("Ошибка"))
-                .shouldHave(Condition.text("Пользователь заблокирован"));
+                .shouldHave(Condition.text("Ошибка! Неверно указан логин или пароль"));
     }
     public void shouldShowBlockedMessage() {
         $("[data-test-id=error-notification]")
